@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#121212">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>八宅命卦速查 · 东四命与西四命</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#121212',
+            cardbg: '#1a1816',
+            panelbg: '#22201d',
+            gold: '#d4af37',
+            goldlight: '#fae392',
+            cinnabar: '#c23531',
+            jade: '#2d8b57',
+            parchment: '#e6ded1',
+            mutedgray: '#8a8377'
+          },
+          fontFamily: {
+            serif: ['"Noto Serif SC"', '"Source Han Serif SC"', '"Songti SC"', 'STSong', 'serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* 典雅东方质感与滚动条美化 */
+    body {
+      background-color: #121212;
+      color: #e6ded1;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Serif SC", serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #332f29;
+      border-radius: 4px;
+    }
+    /* 宣纸淡纹理边框 */
+    .border-gold-subtle {
+      border-color: rgba(212, 175, 55, 0.25);
+    }
+    .gold-glow {
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.15);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-ink flex flex-col justify-between selection:bg-cinnabar selection:text-white">
+
+  <!-- 顶部导航栏 -->
+  <header class="w-full border-b border-gold-subtle bg-panelbg/70 backdrop-blur sticky top-0 z-30 px-4 py-3">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <span class="text-gold text-xl font-bold tracking-wider">☯ 八宅命卦</span>
+        <span class="text-xs px-2 py-0.5 rounded-full border border-gold-subtle text-gold/80 bg-gold/10">易数推演</span>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button id="btn-quick-table" class="text-sm text-gold/90 hover:text-gold flex items-center space-x-1 py-1 px-2.5 rounded-lg bg-cardbg border border-gold-subtle">
+          <i class="fa-solid fa-table-cells text-xs"></i>
+          <span>速查表</span>
+        </button>
+        <!-- 联动入口：带参数跳回电子罗盘 -->
+        <a id="link-compass" href="./index.html" class="text-sm bg-gradient-to-r from-cinnabar to-red-800 text-parchment hover:brightness-110 flex items-center space-x-1 py-1 px-3 rounded-lg shadow font-medium">
+          <i class="fa-solid fa-compass text-xs"></i>
+          <span>进入罗盘</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主体内容区域 -->
+  <main class="w-full max-w-md mx-auto px-4 py-5 flex-1 flex flex-col space-y-5">
+
+    <!-- 输入卡片 -->
+    <section class="bg-cardbg border border-gold-subtle rounded-2xl p-5 shadow-lg relative overflow-hidden">
+      <div class="absolute -top-12 -right-12 w-28 h-28 bg-gold/5 rounded-full blur-xl pointer-events-none"></div>
+      
+      <div class="flex items-center justify-between mb-4 pb-2 border-b border-white/5">
+        <h2 class="text-base font-bold text-gold flex items-center space-x-2">
+          <i class="fa-solid fa-calendar-days text-sm"></i>
+          <span>录入出生纪元</span>
+        </h2>
+        <span class="text-xs text-mutedgray">岁次以立春点界分</span>
+      </div>
+
+      <!-- 性别选择 -->
+      <div class="mb-4">
+        <label class="block text-xs text-mutedgray mb-1.5">缘主阴阳性别</label>
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button" id="gender-male" onclick="setGender('male')" class="py-2.5 rounded-xl border border-gold text-gold bg-gold/10 font-medium flex items-center justify-center space-x-2 transition-all">
+            <i class="fa-solid fa-mars text-blue-400"></i>
+            <span>男命（乾造）</span>
+          </button>
+          <button type="button" id="gender-female" onclick="setGender('female')" class="py-2.5 rounded-xl border border-white/10 text-parchment/60 bg-panelbg font-medium flex items-center justify-center space-x-2 transition-all">
+            <i class="fa-solid fa-venus text-pink-400"></i>
+            <span>女命（坤造）</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 出生日期 -->
+      <div class="grid grid-cols-3 gap-2.5 mb-4">
+        <div>
+          <label class="block text-xs text-mutedgray mb-1">公历出生年</label>
+          <select id="birth-year" class="w-full bg-panelbg border border-white/15 text-parchment rounded-xl px-2.5 py-2 text-sm focus:border-gold outline-none">
+            <!-- 动态填充年份 -->
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-mutedgray mb-1">月份</label>
+          <select id="birth-month" class="w-full bg-panelbg border border-white/15 text-parchment rounded-xl px-2.5 py-2 text-sm focus:border-gold outline-none">
+            <!-- 1-12月 -->
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-mutedgray mb-1">日</label>
+          <select id="birth-day" class="w-full bg-panelbg border border-white/15 text-parchment rounded-xl px-2.5 py-2 text-sm focus:border-gold outline-none">
+            <!-- 1-31日 -->
+          </select>
+        </div>
+      </div>
+
+      <!-- 立春提醒信息条 -->
+      <div id="lichun-tip" class="hidden mb-4 p-2.5 rounded-xl bg-panelbg border border-gold-subtle text-xs text-gold/90 flex items-start space-x-2">
+        <i class="fa-solid fa-circle-info mt-0.5 text-gold"></i>
+        <div id="lichun-tip-text">提示信息</div>
+      </div>
+
+      <!-- 计算触发按钮 -->
+      <button onclick="calculateMingGua()" class="w-full py-3 bg-gradient-to-r from-gold to-yellow-600 hover:from-goldlight hover:to-gold text-ink font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-transform active:scale-[0.98]">
+        <i class="fa-solid fa-yin-yang"></i>
+        <span>推衍本命卦位</span>
+      </button>
+    </section>
+
+    <!-- 结果卡片展示区 -->
+    <section id="result-card" class="bg-cardbg border border-gold-subtle rounded-2xl p-5 shadow-xl relative overflow-hidden">
+      <!-- 卦象主标识条 -->
+      <div class="flex items-center justify-between pb-4 border-b border-white/10">
+        <div class="flex items-center space-x-3">
+          <div id="res-symbol" class="w-14 h-14 rounded-2xl bg-panelbg border border-gold-subtle flex items-center justify-center text-3xl font-serif text-gold shadow-inner">
+            ☵
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span id="res-name" class="text-xl font-bold text-parchment">坎水命</span>
+              <span id="res-tag" class="px-2 py-0.5 rounded text-xs font-bold bg-cinnabar text-white">东四命</span>
+            </div>
+            <p id="res-slogan" class="text-xs text-mutedgray mt-0.5">九宫一数 · 正北方位 · 坎为水</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="text-xs text-mutedgray block">岁次推算</span>
+          <span id="res-effective-year" class="text-sm font-semibold text-gold">1990年 (庚午)</span>
+        </div>
+      </div>
+
+      <!-- 宅命相配总结 -->
+      <div class="my-4 p-3 rounded-xl bg-panelbg/80 border border-white/5">
+        <div class="text-xs text-gold font-medium mb-1 flex items-center space-x-1.5">
+          <i class="fa-solid fa-house-chimney"></i>
+          <span>吉居良宅配属：<strong id="res-zhai-type" class="text-parchment font-bold">东四宅</strong></span>
+        </div>
+        <p id="res-zhai-desc" class="text-xs text-parchment/80 leading-relaxed">
+          东四命宜居东四宅（坐北朝南的坎宅、坐东朝西的震宅、坐东南朝西北的巽宅、坐南朝北的离宅）。同气相生，福泽聚气。
+        </p>
+      </div>
+
+      <!-- 四吉位与四凶位布局 -->
+      <div class="space-y-3.5">
+        <!-- 四吉方 -->
+        <div>
+          <div class="flex items-center space-x-1.5 mb-2">
+            <span class="w-2 h-2 rounded-full bg-jade"></span>
+            <h3 class="text-xs font-bold text-jade uppercase tracking-wider">四吉方（宜开门、主卧、书房、客厅）</h3>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs" id="ji-positions-container">
+            <!-- 动态填充四吉 -->
+          </div>
+        </div>
+
+        <!-- 四凶方 -->
+        <div>
+          <div class="flex items-center space-x-1.5 mb-2">
+            <span class="w-2 h-2 rounded-full bg-cinnabar"></span>
+            <h3 class="text-xs font-bold text-cinnabar uppercase tracking-wider">四凶方（宜作厨卫、库房、杂物间化煞）</h3>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs" id="xiong-positions-container">
+            <!-- 动态填充四凶 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部与罗盘联动按钮 -->
+      <div class="mt-5 pt-4 border-t border-white/10 flex items-center justify-between">
+        <div class="text-xs text-mutedgray">
+          <span>欲辨具体宅内八方？</span>
+        </div>
+        <a id="btn-deep-compass" href="./index.html?gua=kan" class="text-xs bg-panelbg hover:bg-gold/20 border border-gold-subtle text-gold py-2 px-3.5 rounded-xl font-medium flex items-center space-x-1.5 transition-all">
+          <span>带入罗盘实时勘察</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 底部页脚 -->
+  <footer class="w-full max-w-md mx-auto text-center py-4 px-4 text-mutedgray text-xs border-t border-white/5">
+    <p>数理遵奉《周易》后天八卦与阳宅八宅大游年翻卦法则</p>
+  </footer>
+
+  <!-- 速查九宫对照表 Modal 弹窗 -->
+  <div id="modal-table" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-cardbg border border-gold-subtle rounded-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+        <h3 class="text-base font-bold text-gold flex items-center space-x-2">
+          <i class="fa-solid fa-table-list"></i>
+          <span>后天八卦命卦速查对照</span>
+        </h3>
+        <button id="btn-close-modal" class="text-mutedgray hover:text-parchment p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      
+      <div class="p-4 overflow-y-auto custom-scrollbar space-y-4 text-xs">
+        <!-- 八卦分类速记卡 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="p-3 rounded-xl bg-panelbg border border-jade/30">
+            <h4 class="font-bold text-jade text-sm mb-1">东四命 / 东四宅</h4>
+            <p class="text-parchment/80 leading-5">
+              坎一（水·正北）<br>
+              震三（木·正东）<br>
+              巽四（木·东南）<br>
+              离九（火·正南）
+            </p>
+            <div class="mt-2 text-[11px] text-mutedgray">互生相济：水生木、木生火</div>
+          </div>
+          <div class="p-3 rounded-xl bg-panelbg border border-gold/30">
+            <h4 class="font-bold text-gold text-sm mb-1">西四命 / 西四宅</h4>
+            <p class="text-parchment/80 leading-5">
+              坤二（土·西南）<br>
+              兑七（金·正西）<br>
+              乾六（金·西北）<br>
+              艮八（土·东北）
+            </p>
+            <div class="mt-2 text-[11px] text-mutedgray">土金相养：土生金</div>
+          </div>
+        </div>
+
+        <!-- 换算细则 -->
+        <div class="p-3 rounded-xl bg-panelbg border border-white/5 space-y-2 text-parchment/80 leading-5">
+          <div class="text-gold font-semibold">推演公式秘钥：</div>
+          <p>1. <strong>年份合数</strong>：取公历年份后两位相加至个位（如 1993年: 9+3=12 → 1+2=3）。</p>
+          <p>2. <strong>1900-1999 年出生</strong>：<br>男命 = (10 - 年份合数)；女命 = (年份合数 + 5)。</p>
+          <p>3. <strong>2000-2099 年出生</strong>：<br>男命 = (9 - 年份合数)；女命 = (年份合数 + 6)。</p>
+          <p>4. <strong>中五寄宫法则</strong>：洛书5居中土无对应卦，<strong>男命逢5寄坤二（西四命），女命逢5寄艮八（西四命）</strong>。</p>
+          <p>5. <strong>立春分界</strong>：每年公历2月4日前后立春，未交立春者依上一年推算。</p>
+        </div>
+      </div>
+      <div class="p-3 bg-panelbg border-t border-white/5 text-center">
+        <button id="btn-close-modal-bottom" class="w-full py-2 bg-white/10 hover:bg-white/15 text-parchment font-medium rounded-xl">关闭窗口</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 核心逻辑脚本 -->
+  <script>
+    // 卦象与游年八星完整字典
+    const GUA_INFO = {
+      1: {
+        code: 'kan',
+        name: '坎卦',
+        fullName: '坎水命',
+        symbol: '☵',
+        element: '水',
+        direction: '正北',
+        type: '东四命',
+        zhaiType: '东四宅',
+        slogan: '九宫一数 · 正北坎水 · 沉潜通智',
+        zhaiDesc: '东四命宜住东四宅（坐北朝南之坎宅、坐东朝西之震宅、坐东南之巽宅、坐南之离宅）。水生木、木生火，同气生旺。',
+        ji: [
+          { star: '生气（贪狼木）', dir: '东南方（巽）', desc: '官运亨通，精力旺盛，主大吉' },
+          { star: '延年（武曲金）', dir: '正南方（离）', desc: '家庭和睦，增寿得益，长治久安' },
+          { star: '天医（巨门土）', dir: '正东方（震）', desc: '贵人扶持，祛病延寿，体健心宁' },
+          { star: '伏位（左辅木）', dir: '正北方（坎）', desc: '本命辅佐，清净安稳，适作卧房' }
+        ],
+        xiong: [
+          { star: '祸害（禄存土）', dir: '正西方（兑）', desc: '口舌纷争，钱财小耗' },
+          { star: '六煞（文曲水）', dir: '西北方（乾）', desc: '心神不宁，易招是非' },
+          { star: '五鬼（廉贞火）', dir: '东北方（艮）', desc: '脾气乖张，小人暗阻' },
+          { star: '绝命（破军金）', dir: '西南方（坤）', desc: '大伤元气，宜置厨卫以压制' }
+        ]
+      },
+      2: {
+        code: 'kun',
+        name: '坤卦',
+        fullName: '坤土命',
+        symbol: '☷',
+        element: '土',
+        direction: '西南',
+        type: '西四命',
+        zhaiType: '西四宅',
+        slogan: '九宫二数 · 西南坤土 · 厚德载物',
+        zhaiDesc: '西四命宜住西四宅（坐西南之坤宅、坐西北之乾宅、坐正西之兑宅、坐东北之艮宅）。土金相涵，富贵绵延。',
+        ji: [
+          { star: '生气（贪狼木）', dir: '东北方（艮）', desc: '财官生旺，利事业开拓' },
+          { star: '延年（武曲金）', dir: '西北方（乾）', desc: '夫妇和谐，家运悠长稳定' },
+          { star: '天医（巨门土）', dir: '正西方（兑）', desc: '身心健朗，多得贵人照拂' },
+          { star: '伏位（左辅木）', dir: '西南方（坤）', desc: '温厚安和，利于修养生息' }
+        ],
+        xiong: [
+          { star: '祸害（禄存土）', dir: '正东方（震）', desc: '官非口舌，小耗反复' },
+          { star: '六煞（文曲水）', dir: '正南方（离）', desc: '波折起伏，心神浮躁' },
+          { star: '五鬼（廉贞火）', dir: '东南方（巽）', desc: '火燥不安，破耗资财' },
+          { star: '绝命（破军金）', dir: '正北方（坎）', desc: '气运受挫，不宜大门朝此' }
+        ]
+      },
+      3: {
+        code: 'zhen',
+        name: '震卦',
+        fullName: '震木命',
+        symbol: '☳',
+        element: '木',
+        direction: '正东',
+        type: '东四命',
+        zhaiType: '东四宅',
+        slogan: '九宫三数 · 正东震木 · 奋发升腾',
+        zhaiDesc: '东四命宜住东四宅（坐东朝西之震宅、坐北之坎宅、坐东南之巽宅、坐南之离宅）。迎晨曦生发之气。',
+        ji: [
+          { star: '生气（贪狼木）', dir: '正南方（离）', desc: '名利双收，才思敏捷开朗' },
+          { star: '延年（武曲金）', dir: '东南方（巽）', desc: '姻缘美满，人际圆融得力' },
+          { star: '天医（巨门土）', dir: '正北方（坎）', desc: '体魄强壮，灾厄化解' },
+          { star: '伏位（左辅木）', dir: '正东方（震）', desc: '本气充盈，积极有为' }
+        ],
+        xiong: [
+          { star: '祸害（禄存土）', dir: '西南方（坤）', desc: '劳心损耗，偶有虚耗' },
+          { star: '六煞（文曲水）', dir: '东北方（艮）', desc: '情绪多虑，阻碍升迁' },
+          { star: '五鬼（廉贞火）', dir: '西北方（乾）', desc: '易怒多争，小人相碍' },
+          { star: '绝命（破军金）', dir: '正西方（兑）', desc: '金木肃杀，极不宜作为主卧' }
+        ]
+      },
+      4: {
+        code: 'xun',
+        name: '巽卦',
+        fullName: '巽木命',
+        symbol: '☴',
+        element: '木',
+        direction: '东南',
+        type: '东四命',
+        zhaiType: '东四宅',
+        slogan: '九宫四数 · 东南巽木 · 文昌风和',
+        zhaiDesc: '东四命宜配东四宅（坐东南巽宅、坐北坎宅、坐东震宅、坐南离宅）。木火通明，清秀文雅。',
+        ji: [
+          { star: '生气（贪狼木）', dir: '正北方（坎）', desc: '生生不息，大利读书求职' },
+          { star: '延年（武曲金）', dir: '正东方（震）', desc: '情深意笃，家运平稳昌隆' },
+          { star: '天医（巨门土）', dir: '正南方（离）', desc: '化险为夷，得良医良伴' },
+          { star: '伏位（左辅木）', dir: '东南方（巽）', desc: '祥和宁静，适作静修书斋' }
+        ],
+        xiong: [
+          { star: '祸害（禄存土）', dir: '西北方（乾）', desc: '钱财虚散，人事不谐' },
+          { star: '六煞（文曲水）', dir: '正西方（兑）', desc: '感情波澜，心事郁结' },
+          { star: '五鬼（廉贞火）', dir: '西南方（坤）', desc: '燥火煎熬，多生疑虑' },
+          { star: '绝命（破军金）', dir: '东北方（艮）', desc: '气脉衰竭，忌开大门' }
+        ]
+      },
+      6: {
+        code: 'qian',
+        name: '乾卦',
+        fullName: '乾金命',
+        symbol: '☰',
+        element: '金',
+        direction: '西北',
+        type: '西四命',
+        zhaiType: '西四宅',
+        slogan: '九宫六数 · 西北乾金 · 自强不息',
+        zhaiDesc: '西四命宜居西四宅（坐西北乾宅、坐西南坤宅、坐西兑宅、坐东北艮宅）。天地相资，刚健自足。',
+        ji: [
+          { star: '生气（贪狼木）', dir: '正西方（兑）', desc: '财源茂盛，威望卓著' },
+          { star: '延年（武曲金）', dir: '西南方（坤）', desc: '夫妻齐心，家基固若金汤' },
+          { star: '天医（巨门土）', dir: '东北方（艮）', desc: '长寿少疾，常蒙尊长厚爱' },
+          { star: '伏位（左辅木）', dir: '西北方（乾）', desc: '统领全局，果断明澈' }
+        ],
+        xiong: [
+          { star: '祸害（禄存土）', dir: '东南方（巽）', desc: '易招非议，办事反复' },
+          { star: '六煞（文曲水）', dir: '正北方（坎）', desc: '金寒水冷，精力易怠' },
+          { star: '五鬼（廉贞火）', dir: '正东方（震）', desc: '冲突官讼，财物暗损' },
+          { star: '绝命（破军金）', dir: '正南方（离）', desc: '火克重金，多生不利' }
+        ]
+      },
+      7: {
+        code: 'dui',
+        name: '兑卦',
+        fullName: '兑金命',
+        symbol: '☱',
+        element: '金',
+        direction: '正西',
+        type: '西四命',
+        zhaiType: '西四宅',
+        slogan: '九宫七数 · 正西兑金 · 喜悦通达',
+        zhaiDesc: '西四命宜居西四宅（坐西兑宅、坐西南坤宅、坐西北乾宅、坐东北艮宅）。同门金土，欢喜圆融。',
+        ji: [
+          { star: '生气（贪狼木）', dir: '西北方（乾）', desc: '智谋出众，广纳四方财富' },
+          { star: '延年（武曲金）', dir: '东北方（艮）', desc: '安享天伦，情谊真挚长青' },
+          { star: '天医（巨门土）', dir: '西南方（坤）', desc: '体魄安康，逢难呈祥' },
+          { star: '伏位（左辅木）', dir: '正西方（兑）', desc: '和乐欣喜，适合作起居室' }
+        ],
+        xiong: [
+          { star: '祸害（禄存土）', dir: '正北方（坎）', desc: '口角招非，财物琐碎流失' },
+          { star: '六煞（文曲水）', dir: '东南方（巽）', desc: '气散不聚，多惹是非' },
+          { star: '五鬼（廉贞火）', dir: '正南方（离）', desc: '烈火克金，烦忧不安' },
+          { star: '绝命（破军金）', dir: '正东方（震）', desc: '金木交战，大忌开正门' }
+        ]
+      },
+      8: {
+        code: 'gen',
+        name: '艮卦',
+        fullName: '艮土命',
+        symbol: '☶',
+        element: '土',
+        direction: '东北',
+        type: '西四命',
+        zhaiType: '西四宅',
+        slogan: '九宫八数 · 东北艮土 · 敦厚笃定',
+        zhaiDesc: '西四命宜居西四宅（坐东北艮宅、坐西南坤宅、坐西兑宅、坐西北乾宅）。山势稳固，富裕充盈。',
+        ji: [
+          { star: '生气（贪狼木）', dir: '西南方（坤）', desc: '山地合和，财运兴隆发家' },
+          { star: '延年（武曲金）', dir: '正西方（兑）', desc: '家庭美满，安闲享乐' },
+          { star: '天医（巨门土）', dir: '西北方（乾）', desc: '长辈照拂，身强体实' },
+          { star: '伏位（左辅木）', dir: '东北方（艮）', desc: '止其所止，内心安详清静' }
+        ],
+        xiong: [
+          { star: '祸害（禄存土）', dir: '正南方（离）', desc: '口舌困扰，事务迁延' },
+          { star: '六煞（文曲水）', dir: '正东方（震）', desc: '木克土，家庭多不顺意' },
+          { star: '五鬼（廉贞火）', dir: '正北方（坎）', desc: '水火未济，招惹阴邪烦事' },
+          { star: '绝命（破军金）', dir: '东南方（巽）', desc: '风动土散，气机多有不吉' }
+        ]
+      },
+      9: {
+        code: 'li',
+        name: '离卦',
+        fullName: '离火命',
+        symbol: '☲',
+        element: '火',
+        direction: '正南',
+        type: '东四命',
+        zhaiType: '东四宅',
+        slogan: '九宫九数 · 正南离火 · 光明焕耀',
+        zhaiDesc: '东四命宜住东四宅（坐南离宅、坐东震宅、坐东南巽宅、坐北坎宅）。火耀木华，文明锦绣。',
+        ji: [
+          { star: '生气（贪狼木）', dir: '正东方（震）', desc: '名震四方，精力无限充沛' },
+          { star: '延年（武曲金）', dir: '正北方（坎）', desc: '水火既济，百年好合绵长' },
+          { star: '天医（巨门土）', dir: '东南方（巽）', desc: '木火生辉，神清气爽无灾' },
+          { star: '伏位（左辅木）', dir: '正南方（离）', desc: '光明磊落，才华倍受瞩目' }
+        ],
+        xiong: [
+          { star: '祸害（禄存土）', dir: '东北方（艮）', desc: '小事惹扰，虚惊频频' },
+          { star: '六煞（文曲水）', dir: '西南方（坤）', desc: '人际隔阂，精神烦闷' },
+          { star: '五鬼（廉贞火）', dir: '正西方（兑）', desc: '财帛浮动，言语多隙' },
+          { star: '绝命（破军金）', dir: '西北方（乾）', desc: '阳火灼金，诸事多有受制' }
+        ]
+      }
+    };
+
+    // 天干地支表
+    const TIANGAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
+    const DIZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
+
+    let currentGender = 'male';
+
+    // 初始化年份选择列表 (1930 - 2035)
+    function initDateSelects() {
+      const yearSelect = document.getElementById('birth-year');
+      const monthSelect = document.getElementById('birth-month');
+      const daySelect = document.getElementById('birth-day');
+
+      const currentYear = new Date().getFullYear();
+      for (let y = 1930; y <= 2035; y++) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = `${y} 年`;
+        if (y === 1990) opt.selected = true; // 默认选中 1990
+        yearSelect.appendChild(opt);
+      }
+
+      for (let m = 1; m <= 12; m++) {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = `${m} 月`;
+        if (m === 6) opt.selected = true;
+        monthSelect.appendChild(opt);
+      }
+
+      for (let d = 1; d <= 31; d++) {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = `${d} 日`;
+        if (d === 15) opt.selected = true;
+        daySelect.appendChild(opt);
+      }
+
+      // 绑定变更检查立春提示
+      yearSelect.addEventListener('change', checkLiChunNotice);
+      monthSelect.addEventListener('change', checkLiChunNotice);
+      daySelect.addEventListener('change', checkLiChunNotice);
+    }
+
+    // 设置性别选择
+    function setGender(gender) {
+      currentGender = gender;
+      const maleBtn = document.getElementById('gender-male');
+      const femaleBtn = document.getElementById('gender-female');
+
+      if (gender === 'male') {
+        maleBtn.className = "py-2.5 rounded-xl border border-gold text-gold bg-gold/10 font-medium flex items-center justify-center space-x-2 transition-all";
+        femaleBtn.className = "py-2.5 rounded-xl border border-white/10 text-parchment/60 bg-panelbg font-medium flex items-center justify-center space-x-2 transition-all";
+      } else {
+        femaleBtn.className = "py-2.5 rounded-xl border border-gold text-gold bg-gold/10 font-medium flex items-center justify-center space-x-2 transition-all";
+        maleBtn.className = "py-2.5 rounded-xl border border-white/10 text-parchment/60 bg-panelbg font-medium flex items-center justify-center space-x-2 transition-all";
+      }
+      calculateMingGua();
+    }
+
+    // 检查立春分界（每年2月4日前后）
+    function checkLiChunNotice() {
+      const year = parseInt(document.getElementById('birth-year').value);
+      const month = parseInt(document.getElementById('birth-month').value);
+      const day = parseInt(document.getElementById('birth-day').value);
+      const tipBox = document.getElementById('lichun-tip');
+      const tipText = document.getElementById('lichun-tip-text');
+
+      // 1月 或 2月1日~3日，判定为立春前
+      if (month === 1 || (month === 2 && day < 4)) {
+        tipBox.classList.remove('hidden');
+        tipText.innerHTML = `公历 <strong>${year}年${month}月${day}日</strong> 在立春之前，按干支纪历<strong>算作 ${year - 1} 年</strong>推衍。`;
+      } else if (month === 2 && (day === 4 || day === 5)) {
+        tipBox.classList.remove('hidden');
+        tipText.innerHTML = `公历 <strong>${month}月${day}日</strong> 正值交节立春前后。系统默认按交立春后推算；若出生于交节时刻前，请手动按 ${year - 1} 年测算。`;
+      } else {
+        tipBox.classList.add('hidden');
+      }
+    }
+
+    // 计算干支纪年
+    function getGanZhi(year) {
+      const gan = TIANGAN[(year - 4) % 10];
+      const zhi = DIZHI[(year - 4) % 12];
+      return `${gan}${zhi}`;
+    }
+
+    // 计算年份后两位合数 (如 1993 -> 9+3=12 -> 1+2=3)
+    function getYearSum(year) {
+      let lastTwo = year % 100;
+      let d1 = Math.floor(lastTwo / 10);
+      let d2 = lastTwo % 10;
+      let sum = d1 + d2;
+      while (sum > 9) {
+        sum = Math.floor(sum / 10) + (sum % 10);
+      }
+      return sum;
+    }
+
+    // 命卦计算主逻辑
+    function calculateMingGua() {
+      const inputYear = parseInt(document.getElementById('birth-year').value);
+      const month = parseInt(document.getElementById('birth-month').value);
+      const day = parseInt(document.getElementById('birth-day').value);
+
+      // 立春裁定：1月全月及2月1~3日直接算前一年
+      let effectiveYear = inputYear;
+      if (month === 1 || (month === 2 && day < 4)) {
+        effectiveYear = inputYear - 1;
+      }
+
+      const yearSum = getYearSum(effectiveYear);
+      let rawNumber = 0;
+
+      if (effectiveYear < 2000) {
+        if (currentGender === 'male') {
+          rawNumber = 10 - yearSum;
+          if (rawNumber <= 0) rawNumber += 9;
+        } else {
+          rawNumber = yearSum + 5;
+          while (rawNumber > 9) rawNumber -= 9;
+        }
+      } else {
+        // 2000 年及以后
+        if (currentGender === 'male') {
+          rawNumber = 9 - yearSum;
+          if (rawNumber <= 0) rawNumber += 9;
+        } else {
+          rawNumber = yearSum + 6;
+          while (rawNumber > 9) rawNumber -= 9;
+        }
+      }
+
+      // 五黄寄宫处理：男寄坤2，女寄艮8
+      let finalGuaNum = rawNumber;
+      let isJiGong = false;
+      if (rawNumber === 5) {
+        isJiGong = true;
+        finalGuaNum = (currentGender === 'male') ? 2 : 8;
+      }
+
+      renderResult(finalGuaNum, effectiveYear, isJiGong);
+    }
+
+    // 渲染结果到视图
+    function renderResult(guaNum, effectiveYear, isJiGong) {
+      const gua = GUA_INFO[guaNum];
+      if (!gua) return;
+
+      document.getElementById('res-symbol').textContent = gua.symbol;
+      document.getElementById('res-name').textContent = gua.fullName;
+      
+      const tagEl = document.getElementById('res-tag');
+      tagEl.textContent = gua.type;
+      tagEl.className = gua.type === '东四命' 
+        ? "px-2 py-0.5 rounded text-xs font-bold bg-cinnabar text-white"
+        : "px-2 py-0.5 rounded text-xs font-bold bg-gold text-ink font-bold";
+
+      let sloganStr = `${gua.slogan} · 五行属${gua.element}`;
+      if (isJiGong) {
+        sloganStr += ` (中五寄${gua.name.substring(0,1)}宫)`;
+      }
+      document.getElementById('res-slogan').textContent = sloganStr;
+
+      const gz = getGanZhi(effectiveYear);
+      document.getElementById('res-effective-year').textContent = `${effectiveYear}年 (${gz}年)`;
+
+      document.getElementById('res-zhai-type').textContent = gua.zhaiType;
+      document.getElementById('res-zhai-desc').textContent = gua.zhaiDesc;
+
+      // 渲染四吉
+      const jiContainer = document.getElementById('ji-positions-container');
+      jiContainer.innerHTML = '';
+      gua.ji.forEach(item => {
+        const div = document.createElement('div');
+        div.className = "p-2.5 rounded-xl bg-panelbg border border-jade/25 flex flex-col justify-between";
+        div.innerHTML = `
+          <div class="flex items-center justify-between font-bold text-jade">
+            <span>${item.star}</span>
+            <span class="text-[11px] text-parchment/90 bg-jade/20 px-1.5 py-0.5 rounded">${item.dir}</span>
+          </div>
+          <p class="text-[11px] text-mutedgray mt-1 leading-4">${item.desc}</p>
+        `;
+        jiContainer.appendChild(div);
+      });
+
+      // 渲染四凶
+      const xiongContainer = document.getElementById('xiong-positions-container');
+      xiongContainer.innerHTML = '';
+      gua.xiong.forEach(item => {
+        const div = document.createElement('div');
+        div.className = "p-2.5 rounded-xl bg-panelbg border border-cinnabar/25 flex flex-col justify-between";
+        div.innerHTML = `
+          <div class="flex items-center justify-between font-bold text-cinnabar">
+            <span>${item.star}</span>
+            <span class="text-[11px] text-parchment/90 bg-cinnabar/20 px-1.5 py-0.5 rounded">${item.dir}</span>
+          </div>
+          <p class="text-[11px] text-mutedgray mt-1 leading-4">${item.desc}</p>
+        `;
+        xiongContainer.appendChild(div);
+      });
+
+      // 更新直通罗盘的链接参数
+      const compassBtn = document.getElementById('btn-deep-compass');
+      const topCompassLink = document.getElementById('link-compass');
+      const targetUrl = `./index.html?gua=${gua.code}&type=${encodeURIComponent(gua.type)}`;
+      compassBtn.href = targetUrl;
+      topCompassLink.href = targetUrl;
+    }
+
+    // 模态弹窗控制
+    function initModal() {
+      const modal = document.getElementById('modal-table');
+      const btnOpen = document.getElementById('btn-quick-table');
+      const btnClose1 = document.getElementById('btn-close-modal');
+      const btnClose2 = document.getElementById('btn-close-modal-bottom');
+
+      btnOpen.onclick = () => modal.classList.remove('hidden');
+      btnClose1.onclick = () => modal.classList.add('hidden');
+      btnClose2.onclick = () => modal.classList.add('hidden');
+      modal.onclick = (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+      };
+    }
+
+    // 页面初始化
+    window.addEventListener('DOMContentLoaded', () => {
+      initDateSelects();
+      initModal();
+      checkLiChunNotice();
+      calculateMingGua(); // 首次加载自动渲染
+    });
+  </script>
+</body>
+</html>
