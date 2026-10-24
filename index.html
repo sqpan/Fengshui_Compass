@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a1816">
+  <title>文王后天八卦电子罗盘</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;900&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    
+    body {
+      font-family: 'Noto Serif SC', 'Songti SC', 'Source Han Serif SC', serif;
+      touch-action: pan-x pan-y;
+      background-color: #121110;
+      overflow: hidden;
+    }
+
+    /* 罗盘外壳盘与浮雕光泽 */
+    .compass-housing {
+      box-shadow: 
+        0 15px 35px rgba(0,0,0,0.85),
+        inset 0 2px 6px rgba(255,255,255,0.15),
+        inset 0 -4px 10px rgba(0,0,0,0.8),
+        0 0 0 10px #2a2521,
+        0 0 0 14px #1b1816,
+        0 0 0 16px #45372b;
+    }
+
+    /* 呼吸光感指针红线 */
+    .crosshair-needle {
+      filter: drop-shadow(0 0 4px rgba(220, 38, 38, 0.8));
+    }
+
+    /* 纸质质感模拟 */
+    .parchment-bg {
+      background: radial-gradient(circle at center, #fbf7ee 0%, #f4ece1 70%, #e8dbc7 100%);
+    }
+
+    .dark-parchment-bg {
+      background: radial-gradient(circle at center, #262422 0%, #1c1a18 75%, #131211 100%);
+    }
+
+    /* 刻度文字环绕 */
+    .transition-compass {
+      transition: transform 0.08s cubic-bezier(0.1, 0.3, 0.1, 1);
+      will-change: transform;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between items-center text-[#dcd1be] relative overflow-hidden select-none">
+
+  <!-- 顶部状态与度数信息栏 -->
+  <header class="w-full pt-6 pb-2 px-6 flex flex-col items-center z-20">
+    <div class="flex items-center justify-between w-full max-w-md">
+      <!-- 模式状态徽章 -->
+      <button id="sensorToggleBtn" class="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#272320] border border-[#524438] text-xs text-[#b8a690] active:scale-95 transition">
+        <span id="sensorStatusDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="sensorStatusText">传感器自动</span>
+      </button>
+
+      <!-- 印章水印效果 -->
+      <div class="border border-[#a83232] px-2 py-0.5 text-center rounded text-[#ba3434] font-black text-xs tracking-widest bg-[#ba3434]/10 shadow-sm">
+        文王八卦
+      </div>
+
+      <!-- 辅助控制：锁定/校准 -->
+      <div class="flex items-center space-x-2">
+        <button id="lockBtn" class="p-2 rounded-full bg-[#272320] border border-[#524438] text-xs text-[#b8a690] hover:text-[#f3e9d9] active:scale-90 transition" title="锁定朝向">
+          <svg id="lockIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path>
+          </svg>
+        </button>
+        <button id="themeToggleBtn" class="p-2 rounded-full bg-[#272320] border border-[#524438] text-xs text-[#b8a690] hover:text-[#f3e9d9] active:scale-90 transition" title="昼夜模式切换">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 实时角度与方位展示 -->
+    <div class="mt-3 flex flex-col items-center">
+      <div class="flex items-baseline space-x-2">
+        <span id="headingDegree" class="text-4xl md:text-5xl font-black tracking-tight text-[#f5ebd9] font-mono">000°</span>
+        <span id="guaDirection" class="text-xl md:text-2xl font-bold text-[#b93838]">正南・离九</span>
+      </div>
+      <div id="subInfo" class="text-xs text-[#8c7d6e] mt-1 tracking-wider">
+        夏至 · 午方 · 二十四山丙午丁
+      </div>
+    </div>
+  </header>
+
+  <!-- 罗盘表盘核心区域 -->
+  <main class="relative flex-1 w-full flex items-center justify-center p-4">
+    <!-- 固定瞄准基准红线 (罗盘天池定针/十字经纬线) -->
+    <div class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+      <!-- 顶部方向指示标 (红箭头) -->
+      <div class="absolute top-[8%] flex flex-col items-center crosshair-needle">
+        <div class="w-0 h-0 border-l-[9px] border-l-transparent border-r-[9px] border-r-transparent border-b-[18px] border-b-[#c92a2a]"></div>
+        <div class="w-[2px] h-6 bg-[#c92a2a]"></div>
+      </div>
+      <!-- 十字经纬标线（极淡红色） -->
+      <div class="w-full max-w-[340px] md:max-w-[400px] h-[1px] bg-red-600/30"></div>
+      <div class="absolute h-full max-h-[340px] md:max-h-[400px] w-[1px] bg-red-600/30"></div>
+    </div>
+
+    <!-- 旋转表盘容器 -->
+    <div id="compassContainer" class="relative w-[320px] h-[320px] xs:w-[350px] xs:h-[350px] sm:w-[410px] sm:h-[410px] rounded-full compass-housing parchment-bg flex items-center justify-center transition-compass cursor-grab active:cursor-grabbing">
+      
+      <!-- 精确复刻的用户原图：文王后天八卦矢量盘 -->
+      <svg id="baguaSVG" class="w-full h-full rounded-full" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- 宣纸边缘晕染 -->
+          <radialGradient id="dialShade" cx="50%" cy="50%" r="50%">
+            <stop offset="85%" stop-color="#000" stop-opacity="0" />
+            <stop offset="100%" stop-color="#000" stop-opacity="0.25" />
+          </radialGradient>
+        </defs>
+
+        <!-- 表盘外围精工多重同心圆 -->
+        <circle cx="500" cy="500" r="490" fill="none" stroke="#2b2520" stroke-width="4"/>
+        <circle cx="500" cy="500" r="482" fill="none" stroke="#2b2520" stroke-width="1.5"/>
+        <circle cx="500" cy="500" r="472" fill="none" stroke="#2b2520" stroke-width="1"/>
+        <circle cx="500" cy="500" r="390" fill="none" stroke="#2b2520" stroke-width="2"/>
+        <circle cx="500" cy="500" r="280" fill="none" stroke="#2b2520" stroke-width="2"/>
+        <circle cx="500" cy="500" r="165" fill="none" stroke="#2b2520" stroke-width="2"/>
+        <circle cx="500" cy="500" r="498" fill="url(#dialShade)"/>
+
+        <!-- 360度精准刻度环 (在472~490环带之间) -->
+        <g id="ticksGroup" stroke="#3b322a" stroke-linecap="round"></g>
+
+        <!-- 八个方位的分割放射线（22.5度错位隔断八方） -->
+        <!-- 45度一宫，分割线位于 22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5 -->
+        <g stroke="#2b2520" stroke-width="1.8">
+          <line x1="500" y1="10" x2="500" y2="335" transform="rotate(22.5 500 500)"/>
+          <line x1="500" y1="10" x2="500" y2="335" transform="rotate(67.5 500 500)"/>
+          <line x1="500" y1="10" x2="500" y2="335" transform="rotate(112.5 500 500)"/>
+          <line x1="500" y1="10" x2="500" y2="335" transform="rotate(157.5 500 500)"/>
+          <line x1="500" y1="10" x2="500" y2="335" transform="rotate(202.5 500 500)"/>
+          <line x1="500" y1="10" x2="500" y2="335" transform="rotate(247.5 500 500)"/>
+          <line x1="500" y1="10" x2="500" y2="335" transform="rotate(292.5 500 500)"/>
+          <line x1="500" y1="10" x2="500" y2="335" transform="rotate(337.5 500 500)"/>
+        </g>
+
+        <!-- 内部内圈放射线 (165到280之间) -->
+        <g stroke="#2b2520" stroke-width="1.2">
+          <line x1="500" y1="220" x2="500" y2="335" transform="rotate(22.5 500 500)"/>
+          <line x1="500" y1="220" x2="500" y2="335" transform="rotate(67.5 500 500)"/>
+          <line x1="500" y1="220" x2="500" y2="335" transform="rotate(112.5 500 500)"/>
+          <line x1="500" y1="220" x2="500" y2="335" transform="rotate(157.5 500 500)"/>
+          <line x1="500" y1="220" x2="500" y2="335" transform="rotate(202.5 500 500)"/>
+          <line x1="500" y1="220" x2="500" y2="335" transform="rotate(247.5 500 500)"/>
+          <line x1="500" y1="220" x2="500" y2="335" transform="rotate(292.5 500 500)"/>
+          <line x1="500" y1="220" x2="500" y2="335" transform="rotate(337.5 500 500)"/>
+        </g>
+
+        <!-- ======================= 八卦文字与卦象 ======================= -->
+        <!-- 后天八卦严格排布：
+             0°（正上方）：正南 / 离 / 九 / 夏至 / ☲
+             45°（右上）：西南 / 坤 / 二 / 立秋 / ☷
+             90°（正右）：正西 / 兑 / 七 / 秋分 / ☱
+             135°（右下）：西北 / 乾 / 六 / 立冬 / ☰
+             180°（正下）：正北 / 坎 / 一 / 冬至 / ☵
+             225°（左下）：东北 / 艮 / 八 / 立春 / ☶
+             270°（正左）：正东 / 震 / 三 / 春分 / ☳
+             315°（左上）：东南 / 巽 / 四 / 立夏 / ☴
+        -->
+
+        <!-- 1. 正南 离卦 (0°) -->
+        <g transform="rotate(0 500 500)">
+          <text x="428" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">正南</text>
+          <text x="565" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">夏至</text>
+          <!-- 离卦爻象 ☲ -->
+          <g transform="translate(470, 135)">
+            <rect x="0" y="0" width="60" height="9" fill="#1f1b18"/>
+            <rect x="0" y="15" width="25" height="9" fill="#1f1b18"/><rect x="35" y="15" width="25" height="9" fill="#1f1b18"/>
+            <rect x="0" y="30" width="60" height="9" fill="#1f1b18"/>
+          </g>
+          <!-- 洛书数 九 -->
+          <text x="500" y="240" font-size="38" font-weight="900" fill="#1f1b18" text-anchor="middle">九</text>
+          <!-- 八卦名 离 (朱红色) -->
+          <text x="500" y="340" font-size="44" font-weight="900" fill="#9d2020" text-anchor="middle">离</text>
+        </g>
+
+        <!-- 2. 西南 坤卦 (45°) -->
+        <g transform="rotate(45 500 500)">
+          <text x="428" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">西南</text>
+          <text x="565" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">立秋</text>
+          <!-- 坤卦爻象 ☷ -->
+          <g transform="translate(470, 135)">
+            <rect x="0" y="0" width="25" height="9" fill="#1f1b18"/><rect x="35" y="0" width="25" height="9" fill="#1f1b18"/>
+            <rect x="0" y="15" width="25" height="9" fill="#1f1b18"/><rect x="35" y="15" width="25" height="9" fill="#1f1b18"/>
+            <rect x="0" y="30" width="25" height="9" fill="#1f1b18"/><rect x="35" y="30" width="25" height="9" fill="#1f1b18"/>
+          </g>
+          <text x="500" y="240" font-size="38" font-weight="900" fill="#1f1b18" text-anchor="middle">二</text>
+          <text x="500" y="340" font-size="44" font-weight="900" fill="#9d2020" text-anchor="middle">坤</text>
+        </g>
+
+        <!-- 3. 正西 兑卦 (90°) -->
+        <g transform="rotate(90 500 500)">
+          <text x="428" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">正西</text>
+          <text x="565" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">秋分</text>
+          <!-- 兑卦爻象 ☱ -->
+          <g transform="translate(470, 135)">
+            <rect x="0" y="0" width="25" height="9" fill="#1f1b18"/><rect x="35" y="0" width="25" height="9" fill="#1f1b18"/>
+            <rect x="0" y="15" width="60" height="9" fill="#1f1b18"/>
+            <rect x="0" y="30" width="60" height="9" fill="#1f1b18"/>
+          </g>
+          <text x="500" y="240" font-size="38" font-weight="900" fill="#1f1b18" text-anchor="middle">七</text>
+          <text x="500" y="340" font-size="44" font-weight="900" fill="#9d2020" text-anchor="middle">兑</text>
+        </g>
+
+        <!-- 4. 西北 乾卦 (135°) -->
+        <g transform="rotate(135 500 500)">
+          <text x="428" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">西北</text>
+          <text x="565" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">立冬</text>
+          <!-- 乾卦爻象 ☰ -->
+          <g transform="translate(470, 135)">
+            <rect x="0" y="0" width="60" height="9" fill="#1f1b18"/>
+            <rect x="0" y="15" width="60" height="9" fill="#1f1b18"/>
+            <rect x="0" y="30" width="60" height="9" fill="#1f1b18"/>
+          </g>
+          <text x="500" y="240" font-size="38" font-weight="900" fill="#1f1b18" text-anchor="middle">六</text>
+          <text x="500" y="340" font-size="44" font-weight="900" fill="#9d2020" text-anchor="middle">乾</text>
+        </g>
+
+        <!-- 5. 正北 坎卦 (180°) -->
+        <g transform="rotate(180 500 500)">
+          <text x="428" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">正北</text>
+          <text x="565" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">冬至</text>
+          <!-- 坎卦爻象 ☵ -->
+          <g transform="translate(470, 135)">
+            <rect x="0" y="0" width="25" height="9" fill="#1f1b18"/><rect x="35" y="0" width="25" height="9" fill="#1f1b18"/>
+            <rect x="0" y="15" width="60" height="9" fill="#1f1b18"/>
+            <rect x="0" y="30" width="25" height="9" fill="#1f1b18"/><rect x="35" y="30" width="25" height="9" fill="#1f1b18"/>
+          </g>
+          <text x="500" y="240" font-size="38" font-weight="900" fill="#1f1b18" text-anchor="middle">一</text>
+          <text x="500" y="340" font-size="44" font-weight="900" fill="#9d2020" text-anchor="middle">坎</text>
+        </g>
+
+        <!-- 6. 东北 艮卦 (225°) -->
+        <g transform="rotate(225 500 500)">
+          <text x="428" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">东北</text>
+          <text x="565" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">立春</text>
+          <!-- 艮卦爻象 ☶ -->
+          <g transform="translate(470, 135)">
+            <rect x="0" y="0" width="60" height="9" fill="#1f1b18"/>
+            <rect x="0" y="15" width="25" height="9" fill="#1f1b18"/><rect x="35" y="15" width="25" height="9" fill="#1f1b18"/>
+            <rect x="0" y="30" width="25" height="9" fill="#1f1b18"/><rect x="35" y="30" width="25" height="9" fill="#1f1b18"/>
+          </g>
+          <text x="500" y="240" font-size="38" font-weight="900" fill="#1f1b18" text-anchor="middle">八</text>
+          <text x="500" y="340" font-size="44" font-weight="900" fill="#9d2020" text-anchor="middle">艮</text>
+        </g>
+
+        <!-- 7. 正东 震卦 (270°) -->
+        <g transform="rotate(270 500 500)">
+          <text x="428" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">正东</text>
+          <text x="565" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">春分</text>
+          <!-- 震卦爻象 ☳ -->
+          <g transform="translate(470, 135)">
+            <rect x="0" y="0" width="25" height="9" fill="#1f1b18"/><rect x="35" y="0" width="25" height="9" fill="#1f1b18"/>
+            <rect x="0" y="15" width="25" height="9" fill="#1f1b18"/><rect x="35" y="15" width="25" height="9" fill="#1f1b18"/>
+            <rect x="0" y="30" width="60" height="9" fill="#1f1b18"/>
+          </g>
+          <text x="500" y="240" font-size="38" font-weight="900" fill="#1f1b18" text-anchor="middle">三</text>
+          <text x="500" y="340" font-size="44" font-weight="900" fill="#9d2020" text-anchor="middle">震</text>
+        </g>
+
+        <!-- 8. 东南 巽卦 (315°) -->
+        <g transform="rotate(315 500 500)">
+          <text x="428" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">东南</text>
+          <text x="565" y="140" font-size="28" font-weight="900" fill="#1f1b18" writing-mode="vertical-rl" letter-spacing="4">立夏</text>
+          <!-- 巽卦爻象 ☴ -->
+          <g transform="translate(470, 135)">
+            <rect x="0" y="0" width="60" height="9" fill="#1f1b18"/>
+            <rect x="0" y="15" width="60" height="9" fill="#1f1b18"/>
+            <rect x="0" y="30" width="25" height="9" fill="#1f1b18"/><rect x="35" y="30" width="25" height="9" fill="#1f1b18"/>
+          </g>
+          <text x="500" y="240" font-size="38" font-weight="900" fill="#1f1b18" text-anchor="middle">四</text>
+          <text x="500" y="340" font-size="44" font-weight="900" fill="#9d2020" text-anchor="middle">巽</text>
+        </g>
+
+        <!-- ======================= 中宫太极图与五数 ======================= -->
+        <g transform="translate(500,500)">
+          <!-- 太极外边界 -->
+          <circle cx="0" cy="0" r="165" fill="#f8f4ec" stroke="#221e1a" stroke-width="2.5" />
+          
+          <!-- 黑色阴鱼 -->
+          <path d="M 0,-165 A 165,165 0 0,1 0,165 A 82.5,82.5 0 0,1 0,0 A 82.5,82.5 0 0,0 0,-165 Z" fill="#1c1917" />
+          
+          <!-- 太极鱼眼 -->
+          <circle cx="0" cy="-82.5" r="18" fill="#1c1917" />
+          <circle cx="0" cy="82.5" r="18" fill="#f8f4ec" stroke="#1c1917" stroke-width="1.5" />
+
+          <!-- 中宫中宫五核心圆 -->
+          <circle cx="0" cy="0" r="48" fill="#fcf9f2" stroke="#221e1a" stroke-width="2.5"/>
+          <text x="0" y="16" font-size="48" font-weight="900" fill="#1a1816" text-anchor="middle">五</text>
+        </g>
+      </svg>
+    </div>
+  </main>
+
+  <!-- 底部操作与校准提醒栏 -->
+  <footer class="w-full pb-8 pt-3 px-6 flex flex-col items-center z-20 space-y-3">
+    <!-- 校准与手势指示提示条 -->
+    <div id="statusTip" class="text-center text-xs text-[#9d8d7c] bg-[#1d1a17] border border-[#3c332b] px-4 py-2 rounded-lg max-w-sm w-full flex items-center justify-center space-x-2">
+      <svg class="w-4 h-4 text-amber-500 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+      </svg>
+      <span id="tipText">若方向不准，请握住手机在空中呈“8”字形挥动校准</span>
+    </div>
+
+    <!-- 模式切换与操作按钮组 -->
+    <div class="flex items-center space-x-3 w-full max-w-sm justify-between">
+      <button id="toggleRotMode" class="flex-1 py-2.5 px-3 bg-[#24201c] hover:bg-[#322c27] active:scale-95 border border-[#4a3e33] rounded-xl text-xs font-medium text-[#d8cab7] flex items-center justify-center space-x-1.5 transition">
+        <svg class="w-4 h-4 text-[#ba9a76]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        <span id="rotModeLabel">底盘定北模式</span>
+      </button>
+
+      <button id="resetManualBtn" class="py-2.5 px-4 bg-[#24201c] hover:bg-[#322c27] active:scale-95 border border-[#4a3e33] rounded-xl text-xs font-medium text-[#d8cab7] transition flex items-center space-x-1">
+        <span>归零南向</span>
+      </button>
+
+      <button id="fullScreenBtn" class="py-2.5 px-3 bg-[#24201c] hover:bg-[#322c27] active:scale-95 border border-[#4a3e33] rounded-xl text-xs text-[#d8cab7] transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+        </svg>
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    // ==========================================
+    // 1. 初始化表盘 360 度精密刻度线
+    // ==========================================
+    (function initTicks() {
+      const ticksGroup = document.getElementById('ticksGroup');
+      let svgContent = '';
+      for (let i = 0; i < 360; i++) {
+        let r1 = 472;
+        let r2 = 480;
+        let strokeW = 0.8;
+
+        if (i % 45 === 0) {
+          r1 = 460;
+          r2 = 485;
+          strokeW = 2.5;
+        } else if (i % 15 === 0) {
+          r1 = 465;
+          r2 = 482;
+          strokeW = 1.6;
+        } else if (i % 5 === 0) {
+          r1 = 468;
+          r2 = 480;
+          strokeW = 1.0;
+        }
+
+        const rad = (i * Math.PI) / 180;
+        const x1 = 500 + r1 * Math.sin(rad);
+        const y1 = 500 - r1 * Math.cos(rad);
+        const x2 = 500 + r2 * Math.sin(rad);
+        const y2 = 500 - r2 * Math.cos(rad);
+
+        svgContent += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke-width="${strokeW}"/>`;
+      }
+      ticksGroup.innerHTML = svgContent;
+    })();
+
+    // ==========================================
+    // 2. 状态变量定义与方位数据字典
+    // ==========================================
+    let currentHeading = 0;      // 0 ~ 360 度 (相对于正北)
+    let isLocked = false;
+    let isSensorActive = false;
+    let rotationMode = 0;        // 0: 表盘跟随转动(传统风水罗盘), 1: 瞄准轴转动
+    let isNightMode = false;
+
+    // 手指触摸滑动模拟计算
+    let isDragging = false;
+    let touchStartAngle = 0;
+    let startHeadingOnTouch = 0;
+
+    // DOM 元素引用
+    const compassContainer = document.getElementById('compassContainer');
+    const headingDegreeEl = document.getElementById('headingDegree');
+    const guaDirectionEl = document.getElementById('guaDirection');
+    const subInfoEl = document.getElementById('subInfo');
+    const sensorToggleBtn = document.getElementById('sensorToggleBtn');
+    const sensorStatusDot = document.getElementById('sensorStatusDot');
+    const sensorStatusText = document.getElementById('sensorStatusText');
+    const tipText = document.getElementById('tipText');
+    const lockBtn = document.getElementById('lockBtn');
+    const lockIcon = document.getElementById('lockIcon');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const toggleRotModeBtn = document.getElementById('toggleRotMode');
+    const rotModeLabel = document.getElementById('rotModeLabel');
+    const resetManualBtn = document.getElementById('resetManualBtn');
+    const fullScreenBtn = document.getElementById('fullScreenBtn');
+
+    // 文王后天八卦方位对应数据
+    // 注意：中国传统罗盘“上南下北”，图纸上方为正南(180°)，下方为正北(0°/360°)
+    const guaTable = [
+      { min: 337.5, max: 360,   name: "正北・坎一", season: "冬至", mountains: "二十四山：壬子癸", color: "#1f1b18" },
+      { min: 0,     max: 22.5,  name: "正北・坎一", season: "冬至", mountains: "二十四山：壬子癸", color: "#1f1b18" },
+      { min: 22.5,  max: 67.5,  name: "东北・艮八", season: "立春", mountains: "二十四山：丑艮寅", color: "#1f1b18" },
+      { min: 67.5,  max: 112.5, name: "正东・震三", season: "春分", mountains: "二十四山：甲卯乙", color: "#1f1b18" },
+      { min: 112.5, max: 157.5, name: "东南・巽四", season: "立夏", mountains: "二十四山：辰巽巳", color: "#1f1b18" },
+      { min: 157.5, max: 202.5, name: "正南・离九", season: "夏至", mountains: "二十四山：丙午丁", color: "#ba3434" },
+      { min: 202.5, max: 247.5, name: "西南・坤二", season: "立秋", mountains: "二十四山：未坤申", color: "#1f1b18" },
+      { min: 247.5, max: 292.5, name: "正西・兑七", season: "秋分", mountains: "二十四山：庚酉辛", color: "#1f1b18" },
+      { min: 292.5, max: 337.5, name: "西北・乾六", season: "立冬", mountains: "二十四山：戌乾亥", color: "#1f1b18" }
+    ];
+
+    function getGuaInfo(deg) {
+      const normalized = (deg % 360 + 360) % 360;
+      for (const item of guaTable) {
+        if (normalized >= item.min && normalized < item.max) {
+          return item;
+        }
+      }
+      return guaTable[0];
+    }
+
+    // 轻微触感震动（过关键卦山时）
+    let lastVibratedGua = "";
+    function triggerHaptic(guaName) {
+      if (guaName !== lastVibratedGua) {
+        lastVibratedGua = guaName;
+        if (navigator.vibrate) {
+          try {
+            navigator.vibrate(18); // 18毫秒细致微振
+          } catch(e) {}
+        }
+      }
+    }
+
+    // ==========================================
+    // 3. 渲染罗盘朝向与文字更新
+    // ==========================================
+    function updateCompassDisplay(heading) {
+      // 保持度数在 0 ~ 359
+      const deg = Math.round((heading % 360 + 360) % 360);
+      headingDegreeEl.textContent = `${deg.toString().padStart(3, '0')}°`;
+
+      const info = getGuaInfo(deg);
+      guaDirectionEl.textContent = info.name;
+      subInfoEl.textContent = `${info.season} · ${info.mountains}`;
+
+      triggerHaptic(info.name);
+
+      // 计算罗盘盘面旋转角度：
+      // 在用户图纸中：上方默认是“正南・离”。
+      // 当手机朝向正南(180°)时，图纸上的“正南”正好对准手机正上方(0°旋转)。
+      // 因此图纸的基本偏角 = heading - 180°。
+      if (rotationMode === 0) {
+        // 传统罗盘天池法定盘：底盘旋转，天心十字对准手机朝向
+        const rot = -heading + 180;
+        compassContainer.style.transform = `rotate(${rot}deg)`;
+      } else {
+        // 固定底盘方向，以当前度数展示
+        compassContainer.style.transform = `rotate(${heading}deg)`;
+      }
+    }
+
+    // 平滑低通滤波
+    let filteredHeading = 180;
+    function filterDegree(target, current, factor = 0.25) {
+      let diff = target - current;
+      while (diff < -180) diff += 360;
+      while (diff > 180) diff -= 360;
+      return (current + diff * factor + 360) % 360;
+    }
+
+    // ==========================================
+    // 4. 小米手机 / Android 传感器监听支持
+    // ==========================================
+    let sensorHandler = null;
+
+    function handleOrientation(e) {
+      if (isLocked) return;
+
+      let compass = null;
+
+      // 针对 iOS Safari 与特定 Webkit 设备
+      if (e.webkitCompassHeading !== undefined) {
+        compass = e.webkitCompassHeading;
+      }
+      // 针对小米及 Android 手机 Chrome / 自带浏览器
+      else if (e.alpha !== null) {
+        if (e.absolute === true || e.absolute === undefined) {
+          // Android 规范中 alpha 逆时针为负，顺时针转换为指南针 0-360
+          compass = 360 - e.alpha;
+        } else {
+          compass = 360 - e.alpha;
+        }
+      }
+
+      if (compass !== null && !isNaN(compass)) {
+        isSensorActive = true;
+        sensorStatusDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+        sensorStatusText.textContent = "传感器正常";
+        
+        filteredHeading = filterDegree(compass, filteredHeading, 0.28);
+        currentHeading = filteredHeading;
+        updateCompassDisplay(currentHeading);
+      }
+    }
+
+    // 启用设备方向监听
+    async function startSensor() {
+      // iOS 13+ 权限请求
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const perm = await DeviceOrientationEvent.requestPermission();
+          if (perm !== 'granted') {
+            tipText.textContent = "请允许传感器权限以启用自动罗盘";
+            return;
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      // 优先监听高精度绝对方向事件 (Android / 小米主流)
+      if ('ondeviceorientationabsolute' in window) {
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+      } else if ('ondeviceorientation' in window) {
+        window.addEventListener('deviceorientation', handleOrientation, true);
+      } else {
+        sensorStatusDot.className = "w-2 h-2 rounded-full bg-amber-500";
+        sensorStatusText.textContent = "手动旋转模式";
+        tipText.textContent = "当前环境不支持磁力计，可手指滑动罗盘旋转";
+      }
+    }
+
+    function stopSensor() {
+      window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+      window.removeEventListener('deviceorientation', handleOrientation, true);
+      sensorStatusDot.className = "w-2 h-2 rounded-full bg-stone-500";
+      sensorStatusText.textContent = "已暂停";
+    }
+
+    // ==========================================
+    // 5. 手势触摸交互（拖拽旋转表盘）
+    // ==========================================
+    function getTouchAngle(clientX, clientY) {
+      const rect = compassContainer.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+      return Math.atan2(dy, dx) * (180 / Math.PI);
+    }
+
+    function onDragStart(clientX, clientY) {
+      if (isLocked) return;
+      isDragging = true;
+      touchStartAngle = getTouchAngle(clientX, clientY);
+      startHeadingOnTouch = currentHeading;
+      compassContainer.style.transition = 'none'; // 滑动时取消过渡动画以保证跟手响应
+    }
+
+    function onDragMove(clientX, clientY) {
+      if (!isDragging || isLocked) return;
+      const curAngle = getTouchAngle(clientX, clientY);
+      const delta = curAngle - touchStartAngle;
+      
+      // 滑动改变朝向
+      currentHeading = (startHeadingOnTouch - delta + 360) % 360;
+      updateCompassDisplay(currentHeading);
+    }
+
+    function onDragEnd() {
+      isDragging = false;
+      compassContainer.style.transition = '';
+    }
+
+    // 触摸事件
+    compassContainer.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        onDragStart(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isDragging && e.touches.length === 1) {
+        onDragMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', onDragEnd);
+
+    // 鼠标拖拽事件 (桌面或调试器可用)
+    compassContainer.addEventListener('mousedown', (e) => {
+      onDragStart(e.clientX, e.clientY);
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (isDragging) onDragMove(e.clientX, e.clientY);
+    });
+    window.addEventListener('mouseup', onDragEnd);
+
+    // ==========================================
+    // 6. 控件交互逻辑
+    // ==========================================
+    // 锁定当前度数
+    lockBtn.addEventListener('click', () => {
+      isLocked = !isLocked;
+      if (isLocked) {
+        lockBtn.classList.add('bg-red-950', 'border-red-600', 'text-red-400');
+        tipText.textContent = "方位已锁定，点击锁图标可解锁";
+      } else {
+        lockBtn.classList.remove('bg-red-950', 'border-red-600', 'text-red-400');
+        tipText.textContent = "若方向不准，请握住手机呈8字形晃动校准";
+      }
+    });
+
+    // 昼夜模式切换
+    themeToggleBtn.addEventListener('click', () => {
+      isNightMode = !isNightMode;
+      if (isNightMode) {
+        compassContainer.classList.remove('parchment-bg');
+        compassContainer.classList.add('dark-parchment-bg');
+        document.body.style.backgroundColor = '#0b0a0a';
+      } else {
+        compassContainer.classList.add('parchment-bg');
+        compassContainer.classList.remove('dark-parchment-bg');
+        document.body.style.backgroundColor = '#121110';
+      }
+    });
+
+    // 底盘定北 / 指针瞄准 模式切换
+    toggleRotModeBtn.addEventListener('click', () => {
+      rotationMode = rotationMode === 0 ? 1 : 0;
+      rotModeLabel.textContent = rotationMode === 0 ? "底盘定北模式" : "瞄准旋转模式";
+      updateCompassDisplay(currentHeading);
+    });
+
+    // 归零正南
+    resetManualBtn.addEventListener('click', () => {
+      currentHeading = 180;
+      updateCompassDisplay(currentHeading);
+    });
+
+    // 全屏切换
+    fullScreenBtn.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    // 传感器状态按钮点击重连
+    sensorToggleBtn.addEventListener('click', () => {
+      startSensor();
+      tipText.textContent = "已重新连接设备陀螺仪与磁场传感器";
+    });
+
+    // ==========================================
+    // 7. 页面启动与初始化
+    // ==========================================
+    window.onload = function() {
+      // 默认初始化朝向正南 180度（与图纸正上方对齐）
+      currentHeading = 180;
+      updateCompassDisplay(currentHeading);
+
+      // 启动传感器检测
+      startSensor();
+    };
+  </script>
+</body>
+</html>
